@@ -1,6 +1,6 @@
 {
   "name": "samemark",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The same mdast as remark-parse, much faster: a markdown parser that matches mdast-util-from-markdown with GFM and falls back to it for anything else.",
   "type": "module",
   "license": "MIT",
