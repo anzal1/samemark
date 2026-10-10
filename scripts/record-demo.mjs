@@ -79,23 +79,30 @@ fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({chromium: versio
 console.log('run took', runMs, 'ms,', shots.length, 'frames', JSON.stringify(result))
 if (result.mismatches) throw new Error('DOM mismatch in the demo')
 
-// GIF: try settings from richest to leanest, keep the first one under the size budget
-const list = []
-shots.forEach((t, i) => {
-  const next = i + 1 < shots.length ? shots[i + 1] : t + 1500
-  list.push(`file 'frames/f${String(i).padStart(4, '0')}.png'`, `duration ${((i + 1 < shots.length ? next - t : 1500) / 1000).toFixed(3)}`)
-})
-list.push(`file 'frames/f${String(shots.length - 1).padStart(4, '0')}.png'`)
-fs.writeFileSync(path.join(out, 'frames.txt'), list.join('\n') + '\n')
+// GIF: for each output tick pick the latest screenshot taken at or before it (uniform frame times keep the encode
+// predictable), hold the final state for 1.5 s, and try settings from richest to leanest; keep the first under budget
 const budget = Number(arg('budget', String(2.8 * 1024 * 1024)))
 const gif = path.join(out, 'demo-stream.gif')
+const name = i => `frames/f${String(i).padStart(4, '0')}.png`
+const lastRun = shots[shots.length - 2] // time of the last frame taken before the final one
 let best = null
 for (const [f, colors, dither] of [[8, 64, 'none'], [8, 48, 'none'], [8, 32, 'none'], [6, 32, 'none']]) {
+  const dt = 1000 / f
+  const list = []
+  let j = 0
+  for (let t = 0; t <= lastRun; t += dt) {
+    while (j + 1 < shots.length - 1 && shots[j + 1] <= t) j++
+    list.push(`file '${name(j)}'`, `duration ${(dt / 1000).toFixed(4)}`)
+  }
+  for (let k = 0; k < Math.round(1500 / dt); k++) list.push(`file '${name(shots.length - 1)}'`, `duration ${(dt / 1000).toFixed(4)}`)
+  list.push(`file '${name(shots.length - 1)}'`)
+  const listFile = path.join(out, `frames-${f}.txt`)
+  fs.writeFileSync(listFile, list.join('\n') + '\n')
   const tmp = path.join(out, `try-${f}fps-${colors}c.gif`)
-  const vf = `fps=${f},scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=full[p];[b][p]paletteuse=dither=${dither}:diff_mode=rectangle`
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(out, 'frames.txt'), '-t', '12', '-vf', vf, '-loop', '0', tmp], {stdio: 'inherit'})
+  const vf = `scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=full[p];[b][p]paletteuse=dither=${dither}:diff_mode=rectangle`
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', listFile, '-vf', vf, '-loop', '0', tmp], {stdio: 'inherit'})
   const size = fs.statSync(tmp).size
-  console.log(`gif ${f} fps, ${colors} colors: ${(size / 1024 / 1024).toFixed(2)} MB`)
+  console.log(`gif ${f} fps, ${colors} colors: ${(size / 1024 / 1024).toFixed(2)} MB, ${list.length / 2 | 0} frames`)
   if (!best || size < best.size) best = {tmp, size}
   if (size <= budget) { best = {tmp, size}; break }
 }
