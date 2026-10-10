@@ -1,9 +1,9 @@
-// Records the streaming demo (site/dist) in headless, muted Chromium and writes a screen capture plus an optimised GIF.
+// Captures the streaming demo (site/dist) in headless, muted Chromium (screenshots during the run) and writes an optimised GIF.
 // CI-friendly (the bench is too heavy for a laptop):
 //   node site/build.mjs
 //   npm i --no-save --no-package-lock playwright@1.64.0 && npx playwright install --with-deps chromium
-//   node scripts/record-demo.mjs --out=out [--len=30000] [--rate=100] [--fps=12] [--width=880] [--height=680]
-// Needs ffmpeg on the PATH for the GIF. Writes: out/demo.webm, out/demo-stream.gif, out/result.json, out/page-*.png
+//   node scripts/record-demo.mjs --out=out [--len=30000] [--rate=100] [--width=880] [--height=680]
+// Needs ffmpeg on the PATH for the GIF. Writes: out/frames/*.png, out/demo-stream.gif, out/result.json, out/page-*.png
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
@@ -47,28 +47,57 @@ for (const [name, opts] of [['desktop-light', {viewport: {width: 1100, height: 9
   await ctx.close()
 }
 
-// the recording
-const ctx = await browser.newContext({viewport: {width, height}, colorScheme: 'light', recordVideo: {dir: out, size: {width, height}}})
+// the capture: lossless screenshots of the page while the run is going (a compressed screen video is noisy and makes a
+// GIF several times larger), each with its timestamp; the GIF plays them at the times they were taken
+const frames = path.join(out, 'frames')
+fs.rmSync(frames, {recursive: true, force: true})
+fs.mkdirSync(frames)
+const ctx = await browser.newContext({viewport: {width, height}, colorScheme: 'light'})
 const page = await ctx.newPage()
 await page.goto(base + `?len=${len}&rate=${rate}`)
 await page.evaluate(() => { const c = document.querySelector('.controls'); window.scrollTo(0, c.getBoundingClientRect().top + scrollY - 12) })
 const t0 = Date.now()
-await page.waitForFunction(() => window.__samemarkDemo && window.__samemarkDemo.done, null, {timeout: 120000})
+const shots = []
+const limit = 11000
+for (let i = 0; ; i++) {
+  const t = Date.now() - t0
+  await page.screenshot({path: path.join(frames, `f${String(i).padStart(4, '0')}.png`)})
+  shots.push(t)
+  const done = await page.evaluate(() => window.__samemarkDemo.done)
+  if (done || Date.now() - t0 > limit) break
+}
+await page.waitForFunction(() => window.__samemarkDemo.done, null, {timeout: 120000})
 const runMs = Date.now() - t0
-await page.waitForTimeout(1500)
 const result = await page.evaluate(() => ({...window.__samemarkDemo, badge: document.getElementById('badge').textContent}))
+// final state, held for 1.5 s
+await page.screenshot({path: path.join(frames, `f${String(shots.length).padStart(4, '0')}.png`)})
+shots.push(Date.now() - t0)
 await ctx.close()
-const video = await page.video().path()
-fs.copyFileSync(video, path.join(out, 'demo.webm'))
-fs.rmSync(video)
 await browser.close()
 server.close()
-fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({chromium: version, len, rate, runMs, ...result}, null, 2))
-console.log('run took', runMs, 'ms', JSON.stringify(result))
+fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({chromium: version, len, rate, runMs, frames: shots.length, ...result}, null, 2))
+console.log('run took', runMs, 'ms,', shots.length, 'frames', JSON.stringify(result))
 if (result.mismatches) throw new Error('DOM mismatch in the demo')
 
-// GIF: skip the blank first frames, at most 12 s, one shared palette
+// GIF: try settings from richest to leanest, keep the first one under the size budget
+const list = []
+shots.forEach((t, i) => {
+  const next = i + 1 < shots.length ? shots[i + 1] : t + 1500
+  list.push(`file 'frames/f${String(i).padStart(4, '0')}.png'`, `duration ${((i + 1 < shots.length ? next - t : 1500) / 1000).toFixed(3)}`)
+})
+list.push(`file 'frames/f${String(shots.length - 1).padStart(4, '0')}.png'`)
+fs.writeFileSync(path.join(out, 'frames.txt'), list.join('\n') + '\n')
+const budget = Number(arg('budget', String(2.8 * 1024 * 1024)))
 const gif = path.join(out, 'demo-stream.gif')
-const vf = `fps=${fps},scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`
-execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', '0.5', '-t', '12', '-i', path.join(out, 'demo.webm'), '-vf', vf, '-loop', '0', gif], {stdio: 'inherit'})
-console.log('gif', (fs.statSync(gif).size / 1024 / 1024).toFixed(2), 'MB')
+let best = null
+for (const [f, colors, dither] of [[10, 64, 'none'], [8, 64, 'none'], [8, 48, 'none'], [8, 32, 'none'], [6, 32, 'none']]) {
+  const tmp = path.join(out, `try-${f}fps-${colors}c.gif`)
+  const vf = `fps=${f},scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=${dither}:diff_mode=rectangle`
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(out, 'frames.txt'), '-t', '12', '-vf', vf, '-loop', '0', tmp], {stdio: 'inherit'})
+  const size = fs.statSync(tmp).size
+  console.log(`gif ${f} fps, ${colors} colors: ${(size / 1024 / 1024).toFixed(2)} MB`)
+  if (!best || size < best.size) best = {tmp, size}
+  if (size <= budget) { best = {tmp, size}; break }
+}
+fs.copyFileSync(best.tmp, gif)
+console.log('gif', (best.size / 1024 / 1024).toFixed(2), 'MB')

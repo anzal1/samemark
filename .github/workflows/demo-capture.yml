@@ -1,5 +1,5 @@
 name: demo-capture
-# Records the streaming demo in headless, muted Chromium and uploads the capture and the GIF as an artifact. Commits nothing.
+# Captures the streaming demo in headless, muted Chromium and uploads the GIF (and the frames) as an artifact. Commits nothing.
 # By hand: Actions tab, "Run workflow".
 on:
   workflow_dispatch:
@@ -27,13 +27,6 @@ jobs:
           npx playwright install --with-deps chromium
       - run: sudo apt-get install -y --no-install-recommends ffmpeg
       - run: node scripts/record-demo.mjs --out=out --len=${{ inputs.len }} --rate=${{ inputs.rate }}
-      - name: GIF size variants (fps, colors, dither)
-        run: |
-          for v in "10 64 none" "8 48 none" "8 32 none" "6 32 none" "8 32 bayer:bayer_scale=5" "10 48 sierra2_4a"; do
-            set -- $v
-            ffmpeg -y -loglevel error -ss 0.5 -t 12 -i out/demo.webm -vf "fps=${1},scale=880:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${2}:stats_mode=diff[p];[b][p]paletteuse=dither=${3}:diff_mode=rectangle" -loop 0 "out/v-${1}fps-${2}c-${3//[:=]/_}.gif"
-          done
-          ls -l out
       - run: ls -l out
         if: always()
       - uses: actions/upload-artifact@v4
