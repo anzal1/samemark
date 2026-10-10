@@ -78,11 +78,14 @@ const text = (x, y, s, {fill, size = 13, weight = 400, anchor = 'start'} = {}) =
   `<text x="${f1(x)}" y="${f1(y)}" fill="${fill}" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}">${esc(s)}</text>`
 const rect = (x, y, w, h, fill) => `<rect x="${f1(x)}" y="${f1(y)}" width="${f1(Math.max(w, 1))}" height="${h}" rx="1.5" fill="${fill}"/>`
 const line = (x1, y1, x2, y2, stroke, w = 1) => `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}" stroke="${stroke}" stroke-width="${w}"/>`
+// Wraps to a new row when an item would run past the right margin (label width estimated generously, 7.6 px per character at 13 px).
 function legend(items, x, y, t) {
-  let out = '', cx = x
+  let out = '', cx = x, cy = y
   for (const [color, label] of items) {
-    out += rect(cx, y - 10, 10, 10, color) + text(cx + 16, y, label, {fill: t.ink})
-    cx += 16 + label.length * 6.9 + 26
+    const w = 16 + label.length * 7.6
+    if (cx > x && cx + w > W - 24) { cx = x; cy += 18 }
+    out += rect(cx, cy - 10, 10, 10, color) + text(cx + 16, cy, label, {fill: t.ink})
+    cx += w + 26
   }
   return out
 }
@@ -160,7 +163,7 @@ function chartDom(t) {
 
 // c. cost growth while streaming, one axis ----------------------------------------------------------------------------
 function chartGrowth(t) {
-  const px0 = 200, px1 = 800, py0 = 112, py1 = 322, maxX = 110000, maxY = 10000
+  const px0 = 200, px1 = 720, py0 = 112, py1 = 322, maxX = 110000, maxY = 10000
   const X = v => px0 + (v / maxX) * (px1 - px0)
   const Y = v => py1 - (v / maxY) * (py1 - py0)
   const h = 490
