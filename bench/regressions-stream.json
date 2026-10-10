@@ -1,0 +1,111 @@
+[
+ {
+  "opts": "none",
+  "chunks": [
+   "\ufeff",
+   "# a\n\nb"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "a\r",
+   "\n\r",
+   "\nb [x]\r\n\r\n[x]: /u\r\n"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "a\n\nb [r]\n\n",
+   "[r]:",
+   " /u\n\nc"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "[a]\n\n[b][a]\n\n",
+   "[a]: /x",
+   "\n\n[^1] x [^",
+   "1]\n\n[^1]: n\n\nz"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "- a\n\n",
+   "  b\n\n",
+   "c\n\n",
+   "- d"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "```\nx\n\n",
+   "\n",
+   "```\n\nafter\n\nmore"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "a\n===\n\nb\n",
+   "---\n\nc"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "| a |\n|---|\n",
+   "| x |\n\npara\n\n",
+   "| b |\n|---|"
+  ]
+ },
+ {
+  "opts": "fm",
+  "chunks": [
+   "---\na: 1\n",
+   "---\n\nhello\n\n",
+   "---\nx"
+  ]
+ },
+ {
+  "opts": "fm",
+  "chunks": [
+   "---\n",
+   "- a\n\n> b\n\n",
+   "---\n\ntext"
+  ]
+ },
+ {
+  "opts": "math",
+  "chunks": [
+   "$$\nx\n\n",
+   "y\n$$\n\n$a$ b\n\n$",
+   "$c"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "+\n",
+   "[x] b\n\n-\n[ ] c"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "a\n\n\ud83d",
+   "\ude00 b\n\n\u0000c"
+  ]
+ },
+ {
+  "opts": "none",
+  "chunks": [
+   "> a\n>\n",
+   "> b\n\n[l]: /u\n\n> [l] c"
+  ]
+ }
+]

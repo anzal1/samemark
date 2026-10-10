@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": false,
+    "types": ["node"],
+    "paths": {"samemark": ["../../index.d.ts"], "samemark/core": ["../../core.d.ts"], "samemark/stream": ["../../stream.d.ts"]}
+  },
+  "include": ["check.ts"]
+}

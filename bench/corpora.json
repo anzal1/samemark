@@ -1,0 +1,97 @@
+{
+  "note": "Third-party text used by the harnesses. Nothing here is committed: bench/fetch-corpora.mjs clones each repository at the pinned commit (sparse, shallow) into .corpus/ and verifies files, bytes and sha256 (sha256 over `path\\0bytes\\0` of every selected file in sorted path order). Refresh the numbers with `node bench/fetch-corpora.mjs --update`.",
+  "sources": [
+    {
+      "name": "node-api-docs",
+      "role": "docs",
+      "repo": "nodejs/node",
+      "sha": "ae5a0f40b5787a369b6cde39c36fb2760a4cd309",
+      "paths": [
+        "doc/api"
+      ],
+      "include": "\\.md$",
+      "license": "MIT",
+      "kind": "API reference set (many tables, code blocks, links)",
+      "files": 70,
+      "bytes": 4746739,
+      "sha256": "a5e9921913d0957527d5ef29da8379db4d897acef90b08339824ec09c8c05161"
+    },
+    {
+      "name": "node-changelog-v22",
+      "role": "docs",
+      "repo": "nodejs/node",
+      "sha": "ae5a0f40b5787a369b6cde39c36fb2760a4cd309",
+      "paths": [
+        "doc/changelogs/CHANGELOG_V22.md"
+      ],
+      "include": "\\.md$",
+      "license": "MIT",
+      "kind": "one very large changelog",
+      "files": 1,
+      "bytes": 881289,
+      "sha256": "21fcb7329c4c0e055f904a90273dcf31e44130454a0d5a0e9fb6b5f5ee10446a"
+    },
+    {
+      "name": "rust-book",
+      "role": "docs",
+      "repo": "rust-lang/book",
+      "sha": "1500248d8f230566e4ec9f27fcbb8fe9e2898ab1",
+      "paths": [
+        "src"
+      ],
+      "include": "\\.md$",
+      "license": "MIT OR Apache-2.0",
+      "kind": "long-form prose book",
+      "files": 112,
+      "bytes": 1221077,
+      "sha256": "426e40940bec42655f7ca3980bff1e0bac0e18305709166866ec704fd6984e14"
+    },
+    {
+      "name": "vite-docs",
+      "role": "docs",
+      "repo": "vitejs/vite",
+      "sha": "3b72997d42e7dd2b31898d0e68461e3025e836b6",
+      "paths": [
+        "docs"
+      ],
+      "include": "\\.md$",
+      "license": "MIT",
+      "kind": "product docs site (VitePress markdown, frontmatter on every page)",
+      "files": 57,
+      "bytes": 564690,
+      "sha256": "9a3e6b0983de49f0b652531be84902aa5b3976636142b608286848bf9f887d3d"
+    },
+    {
+      "name": "react-changelog",
+      "role": "docs",
+      "repo": "facebook/react",
+      "sha": "b618bbb4422693bbb8d387180687b3f510300f42",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "include": "\\.md$",
+      "license": "MIT",
+      "kind": "one large changelog",
+      "small": true,
+      "files": 1,
+      "bytes": 298005,
+      "sha256": "34ce5f7bc6eb5f916256cbe8357e4ce4b68a6c840bf8c3f706a6cdb0474f4c12"
+    },
+    {
+      "name": "gfm-spec",
+      "role": "spec",
+      "repo": "github/cmark-gfm",
+      "sha": "27d942c8b0a62d192f616e5bf3578f4b6a89e180",
+      "paths": [
+        "test/spec.txt",
+        "test/extensions.txt"
+      ],
+      "include": "\\.txt$",
+      "license": "BSD-2-Clause (code); spec text CC-BY-SA-4.0",
+      "kind": "GitHub Flavored Markdown spec and extension examples",
+      "files": 2,
+      "bytes": 237954,
+      "sha256": "ae87c2f4af45354ef2a2fe3498c0f7d0b68539f244e03cf06b8f18e0b3727d1e"
+    }
+  ]
+}
