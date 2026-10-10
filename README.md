@@ -18,14 +18,19 @@ repository and the commands to run them are below.
 
 <!-- bench:headline -->
 In a real unified pipeline (markdown to HTML with `remark-gfm`, `remark-rehype`, `rehype-stringify`) the whole run is
-about **10x faster** with samemark as the parser: 7.2x to 10.8x across six inputs on a GitHub Actions runner (Node 24,
-median of 7 rounds, identical HTML on every file); 7.0x to 10.4x with `remark-frontmatter` and `remark-math` added.
-Parsing alone is 22x to 39x faster; the rest of the pipeline is unchanged, which is why the end-to-end number is smaller.
-Rendering a long chat answer with react-markdown, as a streaming chat UI does on every token, takes 6.5x to 7.3x less
-time per update in Node, and in Chromium with the CPU throttled to 4x to 6x slower (a phone proxy) a 30,000 character
-message re-renders in 46 ms instead of 263 ms at 6x. Building a 239-page Astro site took 36.1 s with `remark-parse` and
-27.8 s with samemark (23% less). Numbers move a little between runners and runs; the tables below come from one CI run
-and everything is reproducible with `npm run bench`. Details and method: [Benchmarks](#benchmarks).
+**6.2x to 10.3x faster** with samemark as the parser, across six inputs on a GitHub Actions runner (Node 24, median of
+7 rounds, identical HTML on every file). Parsing alone is 28x to 47x faster; the rest of the pipeline is unchanged,
+which is why the end-to-end number is smaller.
+
+Streaming a 30,000 character chat answer into a real DOM in Chromium, `samemark/stream` with memoised blocks spends
+**60x less main-thread time** than react-markdown re-rendering the whole message on every chunk, and 77x less with the
+CPU throttled 6x as a phone proxy (79.4 s down to 1.03 s over 750 pushes; 103 ms down to 1.1 ms per push), with the same
+DOM. Swapping only the parser inside react-markdown gives 5x to 6x.
+
+Building a 239-page Astro site took 29.6 s with `remark-parse` and 22.9 s with samemark (23% less).
+
+All numbers come from one CI run ([38036885270](https://github.com/anzal1/samemark/actions/runs/38036885270)) and are
+reproducible with `npm run bench`. Details and method: [Benchmarks](#benchmarks).
 <!-- /bench:headline -->
 
 - `parse(source)` returns an mdast `Root` equal to `fromMarkdown(source, {extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()]})`.
@@ -197,20 +202,26 @@ parse; 0 failing.
 React render included (DOM commit, memoised blocks):
 
 <!-- stream-bench:start -->
-Interim numbers from a laptop (Apple M5 Max, Node 24, React 19 production build, jsdom as the DOM; reproduce with
-`npm run bench:stream`, about three seconds). The Chromium version with 4x and 6x CPU throttling runs in the `bench`
-workflow (`bench/perf/reactmd-browser.mjs`) and replaces these when its numbers are in.
+From CI run [38036885270](https://github.com/anzal1/samemark/actions/runs/38036885270) (Chromium, GitHub Actions runner); reproduce locally with `npm run bench:stream` (jsdom, smaller numbers) or run the `bench` workflow.
 
-One message of 30,000 characters streamed 200 characters per push into a jsdom node (React production, flushSync per push).
+One chat message streamed 40 characters per push into a real DOM node (Chromium 156.0.8078.4, React 19 production, `flushSync` per push, so each push is parse + React render + DOM commit; layout and paint are not included). (a) react-markdown re-rendering the whole message per push, (b) the same with samemark as the parser, (c) the stream parser with per-block memoisation (`examples/react-chat`). "Total" is the sum of all push times on the main thread. The DOM after the final push, and after every 25th push, is compared with (a): the last column.
 
-| Variant | Pushes | Total | Per push p50 | p95 | worst | Same DOM as (a) |
-|---|---|---|---|---|---|---|
-| (a) react-markdown, whole message per push | 150 | 1.15 s | 7.7 ms | 13 ms | 14 ms | 31/31 |
-| (b) react-markdown + samemark | 150 | 274 ms (**4.2x** less) | 1.8 ms | 2.7 ms | 15 ms | 31/31 |
-| (c) stream parser + memoised blocks | 150 | 42 ms (**27.4x** less) | 0.2 ms | 0.7 ms | 4.1 ms | 31/31 |
+| CPU | Variant | Pushes | Total | Per push p50 | p95 | worst | Same DOM as (a) |
+|---|---|---|---|---|---|---|---|
+| no throttling | (a) react-markdown, whole message per push | 750 | 11.29 s | 15 ms | 28 ms | 32 ms | 31/31 |
+| no throttling | (b) react-markdown + samemark | 750 | 2.24 s (**5.0x** less) | 2.9 ms | 5.0 ms | 31 ms | 31/31 |
+| no throttling | (c) stream parser + memoised blocks | 750 | 187 ms (**60.3x** less) | 0.2 ms | 0.6 ms | 6.4 ms | 31/31 |
+| 4x slower | (a) react-markdown, whole message per push | 750 | 50.91 s | 67 ms | 126 ms | 141 ms | 31/31 |
+| 4x slower | (b) react-markdown + samemark | 750 | 9.85 s (**5.2x** less) | 13 ms | 24 ms | 122 ms | 31/31 |
+| 4x slower | (c) stream parser + memoised blocks | 750 | 669 ms (**76.1x** less) | 0.8 ms | 2.2 ms | 30 ms | 31/31 |
+| 6x slower | (a) react-markdown, whole message per push | 750 | 79.43 s | 103 ms | 198 ms | 219 ms | 31/31 |
+| 6x slower | (b) react-markdown + samemark | 750 | 15.33 s (**5.2x** less) | 20 ms | 36 ms | 207 ms | 31/31 |
+| 6x slower | (c) stream parser + memoised blocks | 750 | 1.03 s (**77.0x** less) | 1.1 ms | 3.2 ms | 45 ms | 31/31 |
 
-(a) is what a chat UI does today: react-markdown re-parses and re-renders the whole message on every push. (b) swaps
-the parser only. (c) is `examples/react-chat`. All three produce the same DOM, compared after every fifth push and at the end.
+
+Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), INTEL(R) XEON(R) PLATINUM 8573C x4, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
+
+(a) is what a chat UI does today: react-markdown re-parses and re-renders the whole message on every push. (b) swaps the parser only. (c) is `examples/react-chat`.
 <!-- stream-bench:end -->
 
 ## Compatibility
@@ -328,7 +339,7 @@ absolute times across tables.
 
 <!-- bench:start -->
 
-Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz x2, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
+Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), AMD EPYC 7763 64-Core Processor x4, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
 
 ### End to end: markdown to HTML with unified
 
@@ -336,34 +347,34 @@ Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), Intel(R
 
 | Input | Files | Size | remark-parse | samemark | Speedup | Parse share before | Parse share after | Identical HTML |
 |---|---|---|---|---|---|---|---|---|
-| README corpus (1 in 4 sample) | 1165 | 7.50 MB | 8.46 s | 785 ms | **10.8x** | 91% | 30% | 1165/1165 |
-| react-changelog | 1 | 0.30 MB | 604 ms | 84 ms | **7.2x** | 91% | 26% | 1/1 |
-| node-api-docs | 70 | 4.75 MB | 5.72 s | 534 ms | **10.7x** | 93% | 32% | 70/70 |
-| node-changelog-v22 | 1 | 0.88 MB | 1.57 s | 190 ms | **8.3x** | 90% | 21% | 1/1 |
-| rust-book | 112 | 1.22 MB | 1.22 s | 141 ms | **8.7x** | 93% | 39% | 112/112 |
-| vite-docs | 57 | 0.56 MB | 703 ms | 84 ms | **8.4x** | 92% | 28% | 57/57 |
+| node-api-docs | 70 | 4.75 MB | 5.00 s | 486 ms | **10.3x** | 92% | 33% | 70/70 |
+| node-changelog-v22 | 1 | 0.88 MB | 1.33 s | 171 ms | **7.8x** | 89% | 21% | 1/1 |
+| rust-book | 112 | 1.22 MB | 1.07 s | 125 ms | **8.6x** | 93% | 40% | 112/112 |
+| vite-docs | 57 | 0.56 MB | 570 ms | 73 ms | **7.8x** | 92% | 29% | 57/57 |
+| react-changelog | 1 | 0.30 MB | 498 ms | 71 ms | **7.0x** | 90% | 19% | 1/1 |
+| synthetic corpus (240 generated documents) | 66 | 0.25 MB | 546 ms | 89 ms | **6.2x** | 88% | 22% | 66/66 |
 
-Content pipeline, as a docs or blog site runs it: `remark-gfm`, `remark-frontmatter` (yaml) and `remark-math` before `remark-rehype`. `vite-docs` has real frontmatter in every page; the README sample gets a generated block so every file has one. Both sides are compared on the HTML.
+Content pipeline, as a docs or blog site runs it: `remark-gfm`, `remark-frontmatter` (yaml) and `remark-math` before `remark-rehype`. `vite-docs` has real frontmatter in every page; the synthetic (or README) documents get a generated block so every file has one. Both sides are compared on the HTML.
 
 | Input | Files | Size | remark-parse | samemark | Speedup | Identical HTML | samemark path |
 |---|---|---|---|---|---|---|---|
-| README corpus (1 in 4 sample) with a synthetic frontmatter block added | 1165 | 7.60 MB | 8.50 s | 816 ms | **10.4x** | 1165/1165 | fast |
-| react-changelog | 1 | 0.30 MB | 635 ms | 91 ms | **7.0x** | 1/1 | fast |
-| vite-docs | 57 | 0.56 MB | 688 ms | 85 ms | **8.1x** | 57/57 | fast |
+| synthetic corpus (240 generated documents) with a frontmatter block added | 66 | 0.26 MB | 559 ms | 95 ms | **5.9x** | 66/66 | fast |
+| vite-docs | 57 | 0.56 MB | 543 ms | 66 ms | **8.2x** | 57/57 | fast |
+| react-changelog | 1 | 0.30 MB | 517 ms | 70 ms | **7.3x** | 1/1 | fast |
 
 For context, other converters on the same input (different pipeline and output: HTML strings, no mdast, not drop-in replacements):
 
 | Input | markdown-it `render` (HTML) | marked `parse` (HTML) |
 |---|---|---|
-| README corpus (1 in 4 sample) | 796 ms | 687 ms |
-| react-changelog | 84 ms | 55 ms |
-| node-api-docs | 562 ms | 452 ms |
-| node-changelog-v22 | 220 ms | 146 ms |
-| rust-book | 129 ms | 111 ms |
-| vite-docs | 86 ms | 63 ms |
+| node-api-docs | 477 ms | 449 ms |
+| node-changelog-v22 | 182 ms | 144 ms |
+| rust-book | 122 ms | 103 ms |
+| vite-docs | 74 ms | 66 ms |
+| react-changelog | 71 ms | 57 ms |
+| synthetic corpus (240 generated documents) | 89 ms | 70 ms |
 
 
-Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), AMD EPYC 7763 64-Core Processor x2, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
+Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), AMD EPYC 7763 64-Core Processor x4, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
 
 ### react-markdown (desktop, Node, `renderToStaticMarkup`, React production build)
 
@@ -373,15 +384,15 @@ One update at a fixed message length (this is also the cost of rendering a finis
 
 | Message length | react-markdown default | with samemark | Speedup |
 |---|---|---|---|
-| 10,000 characters | 52 ms | 8 ms | **6.5x** |
-| 30,000 characters | 122 ms | 17 ms | **7.3x** |
+| 10,000 characters | 36 ms | 5 ms | **6.5x** |
+| 30,000 characters | 92 ms | 13 ms | **7.0x** |
 
 Streaming simulation: the message grows by a few characters at a time and the whole message is re-rendered after each step, as chat apps do:
 
 | Stream | Updates | default: total / mean / worst update | samemark: total / mean / worst update | Speedup |
 |---|---|---|---|---|
-| to 10,000 characters, 20 per step | 500 | 4.07 s / 8 ms / 30 ms | 736 ms / 1 ms / 5 ms | **5.5x** |
-| to 30,000 characters, 20 per step | 1500 | 27.01 s / 18 ms / 43 ms | 5.35 s / 4 ms / 11 ms | **5.1x** |
+| to 10,000 characters, 20 per step | 500 | 3.25 s / 6 ms / 16 ms | 676 ms / 1 ms / 4 ms | **4.8x** |
+| to 30,000 characters, 20 per step | 1500 | 27.98 s / 19 ms / 47 ms | 5.31 s / 4 ms / 9 ms | **5.3x** |
 
 
 ### react-markdown in Chromium, CPU throttled as a phone proxy
@@ -390,12 +401,28 @@ Chromium 156.0.8078.4, react-markdown 10.1.0 production bundle, `renderToStaticM
 
 | CPU | Update at 10,000 characters: default / samemark | Update at 30,000 characters: default / samemark | Stream to 10,000: mean update default / samemark | Stream to 30,000: mean update default / samemark | Identical HTML |
 |---|---|---|---|---|---|
-| no throttling | 12 ms / 3.5 ms (**3.3x**) | 32 ms / 12 ms (**2.7x**) | 6.0 ms / 2.3 ms (**2.6x**) | 17 ms / 5.9 ms (**2.8x**) | 60/60 |
-| 4x slower | 58 ms / 12 ms (**4.8x**) | 175 ms / 30 ms (**5.8x**) | 30 ms / 5.9 ms (**5.1x**) | 86 ms / 16 ms (**5.5x**) | 60/60 |
-| 6x slower | 90 ms / 17 ms (**5.3x**) | 263 ms / 46 ms (**5.7x**) | 46 ms / 8.7 ms (**5.3x**) | 132 ms / 23 ms (**5.6x**) | 60/60 |
+| no throttling | 9.6 ms / 2.0 ms (**4.8x**) | 29 ms / 5.4 ms (**5.4x**) | 5.1 ms / 1.0 ms (**4.9x**) | 14 ms / 2.7 ms (**5.3x**) | 60/60 |
+| 4x slower | 45 ms / 7.9 ms (**5.7x**) | 145 ms / 22 ms (**6.6x**) | 24 ms / 4.3 ms (**5.5x**) | 65 ms / 12 ms (**5.5x**) | 60/60 |
+| 6x slower | 70 ms / 12 ms (**6.0x**) | 200 ms / 35 ms (**5.8x**) | 35 ms / 6.5 ms (**5.3x**) | 102 ms / 18 ms (**5.8x**) | 60/60 |
+
+### Streaming a 30,000 character answer into the DOM
+
+One chat message streamed 40 characters per push into a real DOM node (Chromium 156.0.8078.4, React 19 production, `flushSync` per push, so each push is parse + React render + DOM commit; layout and paint are not included). (a) react-markdown re-rendering the whole message per push, (b) the same with samemark as the parser, (c) the stream parser with per-block memoisation (`examples/react-chat`). "Total" is the sum of all push times on the main thread. The DOM after the final push, and after every 25th push, is compared with (a): the last column.
+
+| CPU | Variant | Pushes | Total | Per push p50 | p95 | worst | Same DOM as (a) |
+|---|---|---|---|---|---|---|---|
+| no throttling | (a) react-markdown, whole message per push | 750 | 11.29 s | 15 ms | 28 ms | 32 ms | 31/31 |
+| no throttling | (b) react-markdown + samemark | 750 | 2.24 s (**5.0x** less) | 2.9 ms | 5.0 ms | 31 ms | 31/31 |
+| no throttling | (c) stream parser + memoised blocks | 750 | 187 ms (**60.3x** less) | 0.2 ms | 0.6 ms | 6.4 ms | 31/31 |
+| 4x slower | (a) react-markdown, whole message per push | 750 | 50.91 s | 67 ms | 126 ms | 141 ms | 31/31 |
+| 4x slower | (b) react-markdown + samemark | 750 | 9.85 s (**5.2x** less) | 13 ms | 24 ms | 122 ms | 31/31 |
+| 4x slower | (c) stream parser + memoised blocks | 750 | 669 ms (**76.1x** less) | 0.8 ms | 2.2 ms | 30 ms | 31/31 |
+| 6x slower | (a) react-markdown, whole message per push | 750 | 79.43 s | 103 ms | 198 ms | 219 ms | 31/31 |
+| 6x slower | (b) react-markdown + samemark | 750 | 15.33 s (**5.2x** less) | 20 ms | 36 ms | 207 ms | 31/31 |
+| 6x slower | (c) stream parser + memoised blocks | 750 | 1.03 s (**77.0x** less) | 1.1 ms | 3.2 ms | 45 ms | 31/31 |
 
 
-Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), AMD EPYC 7763 64-Core Processor x2, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
+Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), INTEL(R) XEON(R) PLATINUM 8573C x4, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
 
 ### Parse only
 
@@ -403,26 +430,26 @@ Same mdast on both sides (`mdast-util-from-markdown` with `micromark-extension-g
 
 | Input | Files | Size | mdast-util-from-markdown + GFM | samemark | Speedup | Identical |
 |---|---|---|---|---|---|---|
-| README corpus | 4780 | 30.44 MB | 25.09 s | 703 ms | **35.7x** | 4780/4780 |
-| react-changelog | 1 | 0.30 MB | 598 ms | 24 ms | **24.4x** | 1/1 |
-| node-api-docs | 70 | 4.75 MB | 5.41 s | 139 ms | **38.9x** | 70/70 |
-| node-changelog-v22 | 1 | 0.88 MB | 1.50 s | 39 ms | **38.3x** | 1/1 |
-| rust-book | 112 | 1.22 MB | 1.14 s | 51 ms | **22.3x** | 112/112 |
-| vite-docs | 57 | 0.56 MB | 654 ms | 22 ms | **29.3x** | 57/57 |
+| node-api-docs | 70 | 4.75 MB | 4.34 s | 121 ms | **35.7x** | 70/70 |
+| node-changelog-v22 | 1 | 0.88 MB | 1.06 s | 23 ms | **46.8x** | 1/1 |
+| rust-book | 112 | 1.22 MB | 921 ms | 32 ms | **29.1x** | 112/112 |
+| vite-docs | 57 | 0.56 MB | 486 ms | 17 ms | **27.9x** | 57/57 |
+| react-changelog | 1 | 0.30 MB | 414 ms | 13 ms | **31.7x** | 1/1 |
+| synthetic corpus (240 generated documents) | 240 | 1.08 MB | 1.54 s | 51 ms | **30.3x** | 240/240 |
 
 Other parsers on the same input. Different output: markdown-it returns a token list and marked returns its own token tree, neither is mdast, and neither is a drop-in replacement. Shown for scale only.
 
 | Input | markdown-it `parse` (tokens) | marked `lexer` (tokens) |
 |---|---|---|
-| README corpus | 2.23 s | 2.13 s |
-| react-changelog | 87 ms | 48 ms |
-| node-api-docs | 537 ms | 349 ms |
-| node-changelog-v22 | 215 ms | 107 ms |
-| rust-book | 133 ms | 73 ms |
-| vite-docs | 83 ms | 44 ms |
+| node-api-docs | 423 ms | 298 ms |
+| node-changelog-v22 | 154 ms | 81 ms |
+| rust-book | 94 ms | 63 ms |
+| vite-docs | 64 ms | 34 ms |
+| react-changelog | 61 ms | 30 ms |
+| synthetic corpus (240 generated documents) | 210 ms | 139 ms |
 
 
-Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), AMD EPYC 7763 64-Core Processor x2, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
+Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), AMD EPYC 7763 64-Core Processor x4, linux x64. Each cell is the median of 7 rounds after one warm-up round, one fresh process per cell.
 
 ### MDX (`@mdx-js/mdx` `compile`)
 
@@ -430,30 +457,30 @@ Plain `format: 'md'` with `remark-gfm`, default parser versus samemark as the pa
 
 | Input | Format | Files compiled | default | with samemark | Speedup | Identical output | samemark path |
 |---|---|---|---|---|---|---|---|
-| README corpus (1 in 16 sample) | md | 291 of 291 | 2.71 s | 814 ms | 3.3x | yes | 1164 fast, 0 fallback |
-| README corpus (1 in 16 sample) | mdx | 198 of 291 | 1.43 s | 1.44 s | 1.0x | yes | 0 fast, 792 fallback |
-| react-changelog | md | 1 of 1 | 840 ms | 265 ms | 3.2x | yes | 4 fast, 0 fallback |
-| react-changelog | mdx | 0 of 1 | n/a | n/a | n/a | n/a | no file in this set is valid MDX |
-| node-api-docs | md | 70 of 70 | 7.21 s | 1.75 s | 4.1x | yes | 280 fast, 0 fallback |
+| node-api-docs | md | 70 of 70 | 6.21 s | 1.55 s | 4.0x | yes | 280 fast, 0 fallback |
 | node-api-docs | mdx | 0 of 70 | n/a | n/a | n/a | n/a | no file in this set is valid MDX |
+| node-changelog-v22 | md | 1 of 1 | 1.68 s | 509 ms | 3.3x | yes | 4 fast, 0 fallback |
+| node-changelog-v22 | mdx | 0 of 1 | n/a | n/a | n/a | n/a | no file in this set is valid MDX |
+| rust-book | md | 112 of 112 | 1.34 s | 367 ms | 3.7x | yes | 448 fast, 0 fallback |
+| rust-book | mdx | 29 of 112 | 245 ms | 251 ms | 1.0x | yes | 0 fast, 116 fallback |
 
 
 ### Real site: Astro 6.4.8 building 239 real markdown pages
 
-rust-book, vite-docs, node-api-docs (6.53 MB of markdown), stock Astro markdown pipeline (remark-parse, remark-gfm, smartypants, Shiki, rehype-raw). Cold build each time (`dist`, `.astro` and the Vite cache removed), 3 builds per variant alternating, median shown, Node v24.21.0, AMD EPYC 7763 64-Core Processor x2.
+rust-book, vite-docs, node-api-docs (6.53 MB of markdown), stock Astro markdown pipeline (remark-parse, remark-gfm, smartypants, Shiki, rehype-raw). Cold build each time (`dist`, `.astro` and the Vite cache removed), 3 builds per variant alternating, median shown, Node v24.21.0, AMD EPYC 7763 64-Core Processor x4.
 
 | Parser | Build wall clock | Time inside the markdown parser | Parser share of build | Documents parsed | Fell back |
 |---|---|---|---|---|---|
-| remark-parse (default) | 36.1 s | 8.93 s | 24.7% | 239 | n/a |
-| samemark | 27.8 s | 0.60 s | 2.1% | 239 | 0 |
+| remark-parse (default) | 29.6 s | 7.07 s | 23.9% | 239 | n/a |
+| samemark | 22.9 s | 0.50 s | 2.2% | 239 | 0 |
 
-Build time saved: 8.2 s (22.8%). Parser time saved: 8.33 s.
+Build time saved: 6.7 s (22.7%). Parser time saved: 6.57 s.
 
-Individual builds (s): default 36.1, 35.5, 36.1; samemark 26.7, 27.8, 28.0.
+Individual builds (s): default 29.2, 29.6, 29.7; samemark 22.7, 22.9, 23.3.
 
 <!-- bench:end -->
 
-**Reading the react-markdown numbers.** The speedup per update is smaller than the parse-only number because React rendering and the hast to JSX step are unchanged. It differs by runtime: Node 6.5x to 7.3x, unthrottled Chromium 2.7x to 3.3x, throttled Chromium 4.8x to 5.8x. I do not have a verified explanation for why the ratio grows under CPU throttling (throttling slows the main thread; garbage collection and compilation threads are not slowed the same way, which is a guess, not a measurement). The absolute numbers are the practical result: a finished 30,000 character answer renders in 46 ms instead of 263 ms at 6x throttle.
+**Reading the react-markdown numbers.** The speedup per update is smaller than the parse-only number because React rendering and the hast to JSX step are unchanged. It differs by runtime: Node 6.5x to 7.0x, unthrottled Chromium 4.8x to 5.4x, throttled Chromium 5.3x to 6.6x. I do not have a verified explanation for why the ratio grows under CPU throttling (throttling slows the main thread; garbage collection and compilation threads are not slowed the same way, which is a guess, not a measurement). The absolute numbers are the practical result: a finished 30,000 character answer renders in 35 ms instead of 200 ms at 6x throttle.
 
 Reproduce:
 
