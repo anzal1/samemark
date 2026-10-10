@@ -6,6 +6,10 @@ The same mdast as remark-parse, much faster.
 **[Live demo](https://anzal1.github.io/samemark/)**: a long chat answer streamed into react-markdown (left) and into
 `samemark/stream` (right), with per-update timings measured in your browser and a check that both DOMs are identical,
 plus a playground that compares samemark's tree with `mdast-util-from-markdown` as you type.
+
+<a href="https://anzal1.github.io/samemark/"><img alt="Screen capture of the live demo: the same 10,000 character chat answer streams into react-markdown on the left and samemark/stream on the right, with per-update timings, a sparkline for each side and a badge reporting that both panes hold identical HTML." src="assets/demo-stream.gif" width="880"></a>
+
+The capture above is the live demo, recorded in headless Chromium on a GitHub Actions runner ([capture run 38066505899](https://github.com/anzal1/samemark/actions/runs/38066505899): 250 updates, 1.76 s of update time on the left, 94 ms on the right, identical HTML at all 25 checks). On your own device the numbers will differ; they are measured in your browser.
 <!-- demo:end -->
 
 <picture>
