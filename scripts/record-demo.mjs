@@ -79,14 +79,15 @@ fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({chromium: versio
 console.log('run took', runMs, 'ms,', shots.length, 'frames', JSON.stringify(result))
 if (result.mismatches) throw new Error('DOM mismatch in the demo')
 
-// GIF: for each output tick pick the latest screenshot taken at or before it (uniform frame times keep the encode
+// GIF (screenshots can differ in pixel format, rgb24 against rgba; -reinit_filter 0 plus format=rgb24 keeps one filter
+// graph, otherwise ffmpeg restarts the palette pass mid-stream and silently drops most frames): for each output tick pick the latest screenshot taken at or before it (uniform frame times keep the encode
 // predictable), hold the final state for 1.5 s, and try settings from richest to leanest; keep the first under budget
 const budget = Number(arg('budget', String(2.8 * 1024 * 1024)))
 const gif = path.join(out, 'demo-stream.gif')
 const name = i => `frames/f${String(i).padStart(4, '0')}.png`
 const lastRun = shots[shots.length - 2] // time of the last frame taken before the final one
 let best = null
-for (const [f, colors, dither] of [[8, 64, 'none'], [8, 48, 'none'], [8, 32, 'none'], [6, 32, 'none']]) {
+for (const [f, colors, dither] of [[8, 64, 'none'], [8, 48, 'none'], [8, 32, 'none'], [7, 32, 'none'], [6, 32, 'none']]) {
   const dt = 1000 / f
   const list = []
   let j = 0
@@ -99,8 +100,8 @@ for (const [f, colors, dither] of [[8, 64, 'none'], [8, 48, 'none'], [8, 32, 'no
   const listFile = path.join(out, `frames-${f}.txt`)
   fs.writeFileSync(listFile, list.join('\n') + '\n')
   const tmp = path.join(out, `try-${f}fps-${colors}c.gif`)
-  const vf = `scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=full[p];[b][p]paletteuse=dither=${dither}:diff_mode=rectangle`
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', listFile, '-vf', vf, '-loop', '0', tmp], {stdio: 'inherit'})
+  const vf = `format=rgb24,scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=full[p];[b][p]paletteuse=dither=${dither}:diff_mode=rectangle`
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-reinit_filter', '0', '-f', 'concat', '-safe', '0', '-i', listFile, '-vf', vf, '-loop', '0', tmp], {stdio: 'inherit'})
   const size = fs.statSync(tmp).size
   console.log(`gif ${f} fps, ${colors} colors: ${(size / 1024 / 1024).toFixed(2)} MB, ${list.length / 2 | 0} frames`)
   if (!best || size < best.size) best = {tmp, size}
