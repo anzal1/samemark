@@ -87,7 +87,7 @@ const gif = path.join(out, 'demo-stream.gif')
 const name = i => `frames/f${String(i).padStart(4, '0')}.png`
 const lastRun = shots[shots.length - 2] // time of the last frame taken before the final one
 let best = null
-for (const [f, colors, dither] of [[8, 64, 'none'], [8, 48, 'none'], [8, 32, 'none'], [7, 32, 'none'], [6, 32, 'none']]) {
+for (const [f, colors, dither] of [[8, 64, 'none'], [7, 64, 'none'], [6, 64, 'none'], [5, 64, 'none'], [5, 48, 'none']]) {
   const dt = 1000 / f
   const list = []
   let j = 0
