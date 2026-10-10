@@ -27,7 +27,7 @@ nav a { color: var(--muted); text-decoration: none; }
 nav a:hover { color: var(--fg); text-decoration: underline; }
 h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.15; letter-spacing: -.02em; margin: 40px 0 12px; }
 h2 { font-size: 24px; letter-spacing: -.01em; margin: 48px 0 8px; }
-h3 { font-size: 15px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+h3 { font-size: 15px; margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; }
 p { margin: 0 0 12px; max-width: 78ch; }
 .intro p { color: var(--muted); font-size: 17px; }
 .note { color: var(--bad-fg); }
@@ -46,7 +46,7 @@ button:hover { border-color: var(--muted); }
 .badge.fail { background: var(--bad-bg); color: var(--bad-fg); }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .side { min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg); }
-.dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; position: relative; top: 1px; }
 .dot.base { background: var(--base); } .dot.green { background: var(--green); }
 .stats { display: grid; grid-template-columns: repeat(5, auto); gap: 4px 12px; margin: 0 0 8px; justify-content: space-between; }
 .stats div { min-width: 0; }

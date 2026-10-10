@@ -90,9 +90,9 @@ fs.writeFileSync(path.join(out, 'frames.txt'), list.join('\n') + '\n')
 const budget = Number(arg('budget', String(2.8 * 1024 * 1024)))
 const gif = path.join(out, 'demo-stream.gif')
 let best = null
-for (const [f, colors, dither] of [[10, 64, 'none'], [8, 64, 'none'], [8, 48, 'none'], [8, 32, 'none'], [6, 32, 'none']]) {
+for (const [f, colors, dither] of [[8, 64, 'none'], [8, 48, 'none'], [8, 32, 'none'], [6, 32, 'none']]) {
   const tmp = path.join(out, `try-${f}fps-${colors}c.gif`)
-  const vf = `fps=${f},scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=${dither}:diff_mode=rectangle`
+  const vf = `fps=${f},scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=full[p];[b][p]paletteuse=dither=${dither}:diff_mode=rectangle`
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(out, 'frames.txt'), '-t', '12', '-vf', vf, '-loop', '0', tmp], {stdio: 'inherit'})
   const size = fs.statSync(tmp).size
   console.log(`gif ${f} fps, ${colors} colors: ${(size / 1024 / 1024).toFixed(2)} MB`)
