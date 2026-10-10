@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>samemark: live demo</title>
+<meta name="description" content="Live demo of samemark, a markdown parser that returns the same mdast as remark-parse, much faster. Streaming comparison with react-markdown and a side by side playground, measured in your browser.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a7f64'/%3E%3Cpath d='M8 23V10h3l5 8 5-8h3v13h-3v-7l-5 8-5-8v7z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#demo">Skip to the demo</a>
+<header class="top">
+  <div class="wrap">
+    <p class="brand">samemark</p>
+    <nav aria-label="Project links">
+      <a href="https://github.com/anzal1/samemark">GitHub</a>
+      <a href="https://github.com/anzal1/samemark#benchmarks">Benchmarks</a>
+      <a href="https://github.com/anzal1/samemark/issues/new">Report a difference</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>The same mdast as remark-parse, much faster.</h1>
+    <p>samemark parses markdown into the same tree as <code>mdast-util-from-markdown</code> with GFM, positions included, and falls back to that parser for anything it does not reproduce exactly. Below, both run live in your browser: no server, no tracking, nothing is sent anywhere.</p>
+    <noscript><p class="note">This page needs JavaScript: both demos run the parsers in your browser.</p></noscript>
+  </section>
+
+  <section id="demo" aria-labelledby="demo-h">
+    <h2 id="demo-h">Streaming demo: a chat answer, token by token</h2>
+    <p>One long answer is streamed into two panes, 40 characters per update. On the left, <code>react-markdown</code> re-parses and re-renders the whole message on every update, which is what most chat UIs do. On the right, <code>samemark/stream</code> parses only the new text and React skips every finished block (<a href="https://github.com/anzal1/samemark/blob/main/examples/react-chat/StreamMarkdown.jsx">examples/react-chat</a>).</p>
+
+    <div class="controls" role="group" aria-label="Demo controls">
+      <label>Answer length
+        <select id="len">
+          <option value="10000">10,000 characters</option>
+          <option value="30000" selected>30,000 characters</option>
+        </select>
+      </label>
+      <label>Speed
+        <select id="rate">
+          <option value="10">10 updates per second</option>
+          <option value="25">25 updates per second</option>
+          <option value="50" selected>50 updates per second</option>
+          <option value="100">100 updates per second</option>
+          <option value="0">as fast as possible</option>
+        </select>
+      </label>
+      <button id="pause" type="button">Pause</button>
+      <button id="restart" type="button" class="primary">Restart</button>
+    </div>
+
+    <p id="badge" class="badge pending" role="status" aria-live="polite">Starting...</p>
+
+    <div class="cols">
+      <article class="side" aria-labelledby="l-h">
+        <h3 id="l-h"><span class="dot base" aria-hidden="true"></span>react-markdown, whole message per update</h3>
+        <dl class="stats">
+          <div><dt>updates</dt><dd id="l-n">0</dd></div>
+          <div><dt>last</dt><dd id="l-last">-</dd></div>
+          <div><dt>mean</dt><dd id="l-mean">-</dd></div>
+          <div><dt>worst</dt><dd id="l-worst">-</dd></div>
+          <div class="total"><dt>total</dt><dd id="l-total">-</dd></div>
+        </dl>
+        <svg id="l-spark" class="spark" viewBox="0 0 300 60" preserveAspectRatio="none" role="img" aria-label="Milliseconds per update over the run, left pane"><line x1="0" y1="59.5" x2="300" y2="59.5" class="axis"/><polyline points="" class="line base" vector-effect="non-scaling-stroke"/></svg>
+        <div class="out md" id="out-left" tabindex="0" aria-label="Rendered answer, left pane"></div>
+      </article>
+      <article class="side" aria-labelledby="r-h">
+        <h3 id="r-h"><span class="dot green" aria-hidden="true"></span>samemark/stream, memoised blocks</h3>
+        <dl class="stats">
+          <div><dt>updates</dt><dd id="r-n">0</dd></div>
+          <div><dt>last</dt><dd id="r-last">-</dd></div>
+          <div><dt>mean</dt><dd id="r-mean">-</dd></div>
+          <div><dt>worst</dt><dd id="r-worst">-</dd></div>
+          <div class="total"><dt>total</dt><dd id="r-total">-</dd></div>
+        </dl>
+        <svg id="r-spark" class="spark" viewBox="0 0 300 60" preserveAspectRatio="none" role="img" aria-label="Milliseconds per update over the run, right pane"><line x1="0" y1="59.5" x2="300" y2="59.5" class="axis"/><polyline points="" class="line green" vector-effect="non-scaling-stroke"/></svg>
+        <div class="out md" id="out-right" tabindex="0" aria-label="Rendered answer, right pane"></div>
+      </article>
+    </div>
+    <p id="ratio" class="ratio"></p>
+    <p class="small">Both sparklines share one scale: <span id="scale">0 to 1 ms</span> per update, left edge is the first update. Each number is the time of one synchronous React update (parse, render and DOM commit; layout and paint are not included), measured with <code>performance.now()</code> in your browser, on this device. Both panes run on the same thread, one after the other, in alternating order. No throttling is applied: open this page on a phone to see the difference on a slower device. The checked claim is the badge: the two panes must hold identical HTML, compared every 10 updates and at the end. Controlled measurements (Chromium, 4x and 6x CPU throttling, 7 rounds) are in the <a href="https://github.com/anzal1/samemark#streaming-cost">README</a>.</p>
+  </section>
+
+  <section id="playground" aria-labelledby="pg-h">
+    <h2 id="pg-h">Playground: the same tree?</h2>
+    <p>Type markdown. Both parsers run in your browser on every change and the two trees are compared node by node, positions included. The sample is deliberately awkward: nested emphasis, a footnote, a table with escaped pipes, a reference definition used before it appears, raw HTML, autolink literals.</p>
+    <label for="src" class="block">Markdown</label>
+    <textarea id="src" rows="14" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    <p id="verdict" class="badge pending" role="status" aria-live="polite">Parsing...</p>
+    <p class="try">Try to break it: if you find an input where the two trees differ, <a href="https://github.com/anzal1/samemark/issues/new?title=Different+mdast+from+mdast-util-from-markdown">open an issue</a> and paste the input. That is exactly the bug report this project wants.</p>
+    <label class="check"><input id="pos" type="checkbox"> Show <code>position</code> fields in the trees below (they are always compared)</label>
+    <div class="cols">
+      <article class="side" aria-labelledby="pa-h">
+        <h3 id="pa-h"><span class="dot green" aria-hidden="true"></span>samemark <span class="time" id="t-fast"></span></h3>
+        <pre class="tree" id="tree-fast" tabindex="0" aria-label="mdast from samemark"></pre>
+      </article>
+      <article class="side" aria-labelledby="pb-h">
+        <h3 id="pb-h"><span class="dot base" aria-hidden="true"></span>mdast-util-from-markdown + GFM <span class="time" id="t-ref"></span></h3>
+        <pre class="tree" id="tree-ref" tabindex="0" aria-label="mdast from mdast-util-from-markdown"></pre>
+      </article>
+    </div>
+    <p class="small">Parse time is per parse: one warm-up run, then the median of 5 batches of repeated parses in this tab (a single parse of a short text is below the timer resolution of browsers). A short input mostly measures call overhead; paste a large document to see the gap. samemark here is <code>samemark/core</code> with stock GFM (the browser build); the reference is <code>mdast-util-from-markdown</code> with <code>micromark-extension-gfm</code> and <code>mdast-util-gfm</code>.</p>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>MIT licensed. <a href="https://github.com/anzal1/samemark">Source, benchmarks and the identity checks</a>. <a href="https://github.com/micromark/micromark">micromark</a> by Titus Wormer defines the behavior this parser reproduces.</p>
+</footer>
+<script src="app.js" defer></script>
+</body>
+</html>

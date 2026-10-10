@@ -71,6 +71,8 @@
     "bench:small": "node bench/perf/run.mjs --small",
     "bench:stream": "node bench/perf/stream-jsdom.mjs",
     "scaling": "node bench/scaling.mjs",
+    "charts": "node scripts/charts.mjs",
+    "site": "node site/build.mjs",
     "fuzz": "node bench/fuzz.mjs"
   },
   "peerDependencies": {

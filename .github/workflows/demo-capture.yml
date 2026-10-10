@@ -1,0 +1,35 @@
+name: demo-capture
+# Records the streaming demo in headless, muted Chromium and uploads the capture and the GIF as an artifact. Commits nothing.
+# By hand: Actions tab, "Run workflow".
+on:
+  workflow_dispatch:
+    inputs:
+      len:
+        description: 'answer length (10000 or 30000)'
+        default: '30000'
+      rate:
+        description: 'updates per second (0 = as fast as possible)'
+        default: '100'
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node site/build.mjs
+      - run: |
+          npm i --no-save --no-package-lock playwright@1.64.0
+          npx playwright install --with-deps chromium
+      - run: node scripts/record-demo.mjs --out=out --len=${{ inputs.len }} --rate=${{ inputs.rate }}
+      - run: ls -l out
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-capture
+          path: out/
