@@ -1,0 +1,242 @@
+name: full
+# Everything that is too slow for every push: the full differential fuzz matrix (about 60M cases), the full stream
+# differential matrix, the stream benchmark, 10 MB inputs against micromark, Deno and Chromium smoke tests, and the
+# slow README corpus rebuild. Runs weekly and by hand (Actions tab, "Run workflow").
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+concurrency:
+  group: full-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  fuzz-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # exhaustive, alphabet of 17 characters, length <= 6 (25.5M strings) in 16 shards
+          - {name: ex0, args: '--mode=exhaustive --maxlen=6 --shard=0/16'}
+          - {name: ex1, args: '--mode=exhaustive --maxlen=6 --shard=1/16'}
+          - {name: ex2, args: '--mode=exhaustive --maxlen=6 --shard=2/16'}
+          - {name: ex3, args: '--mode=exhaustive --maxlen=6 --shard=3/16'}
+          - {name: ex4, args: '--mode=exhaustive --maxlen=6 --shard=4/16'}
+          - {name: ex5, args: '--mode=exhaustive --maxlen=6 --shard=5/16'}
+          - {name: ex6, args: '--mode=exhaustive --maxlen=6 --shard=6/16'}
+          - {name: ex7, args: '--mode=exhaustive --maxlen=6 --shard=7/16'}
+          - {name: ex8, args: '--mode=exhaustive --maxlen=6 --shard=8/16'}
+          - {name: ex9, args: '--mode=exhaustive --maxlen=6 --shard=9/16'}
+          - {name: ex10, args: '--mode=exhaustive --maxlen=6 --shard=10/16'}
+          - {name: ex11, args: '--mode=exhaustive --maxlen=6 --shard=11/16'}
+          - {name: ex12, args: '--mode=exhaustive --maxlen=6 --shard=12/16'}
+          - {name: ex13, args: '--mode=exhaustive --maxlen=6 --shard=13/16'}
+          - {name: ex14, args: '--mode=exhaustive --maxlen=6 --shard=14/16'}
+          - {name: ex15, args: '--mode=exhaustive --maxlen=6 --shard=15/16'}
+          # same strings with definitions / footnote definitions appended (length <= 5)
+          - {name: exdefs0, args: '--mode=exhaustive --maxlen=5 --suffix=defs --shard=0/2'}
+          - {name: exdefs1, args: '--mode=exhaustive --maxlen=5 --suffix=defs --shard=1/2'}
+          # random, length <= 20, long * and _ runs weighted
+          - {name: rb1, args: '--mode=random --count=1500000 --maxlen=20 --seed=1'}
+          - {name: rb2, args: '--mode=random --count=1500000 --maxlen=20 --seed=2 --suffix=defs'}
+          - {name: rb3, args: '--mode=random --count=1500000 --maxlen=20 --seed=3'}
+          - {name: rb4, args: '--mode=random --count=1500000 --maxlen=20 --seed=4 --suffix=defs'}
+          # random over blocks + inline tokens (lists, fences, tables, html, footnotes, literals, tabs)
+          - {name: rr1, args: '--mode=random --alphabet=rich --count=800000 --maxlen=24 --seed=1'}
+          - {name: rr2, args: '--mode=random --alphabet=rich --count=800000 --maxlen=24 --seed=2 --suffix=defs'}
+          - {name: rr3, args: '--mode=random --alphabet=rich --count=800000 --maxlen=30 --seed=3'}
+          # definitions: generated text as title / destination, footnote definitions in quotes and lists
+          - {name: pd1, args: '--mode=random --alphabet=links --count=600000 --maxlen=16 --seed=11 --prefix=def'}
+          - {name: pd2, args: '--mode=random --alphabet=links --count=600000 --maxlen=16 --seed=12 --prefix=defparen'}
+          - {name: pd3, args: '--mode=random --alphabet=rich --count=600000 --maxlen=14 --seed=13 --prefix=defdest'}
+          - {name: pd4, args: '--mode=random --alphabet=rich --count=600000 --maxlen=14 --seed=14 --prefix=fnbq'}
+          - {name: pd5, args: '--mode=random --alphabet=rich --count=600000 --maxlen=14 --seed=15 --prefix=fnli'}
+          - {name: pd6, args: '--mode=random --count=1500000 --maxlen=12 --seed=16 --prefix=defquote'}
+          - {name: pd7, args: '--mode=random --count=1500000 --maxlen=12 --seed=17 --prefix=defangle'}
+          - {name: lk1, args: '--mode=random --alphabet=links --count=800000 --maxlen=20 --seed=21'}
+          - {name: lk2, args: '--mode=random --alphabet=links --count=800000 --maxlen=24 --seed=22 --suffix=defs'}
+          - {name: lk3, args: '--mode=random --alphabet=links --count=800000 --maxlen=30 --seed=23'}
+          # frontmatter (remark-frontmatter): yaml+toml, default yaml, custom fences / markers; prefixes put the text behind a block
+          - {name: fm1, args: '--mode=random --alphabet=fm --ext=fm --count=1500000 --maxlen=12 --seed=31'}
+          - {name: fm2, args: '--mode=random --alphabet=fm --ext=fmy --count=1500000 --maxlen=12 --seed=32'}
+          - {name: fm3, args: '--mode=random --alphabet=fm --ext=fmc --count=1500000 --maxlen=12 --seed=33'}
+          - {name: fm4, args: '--mode=random --alphabet=fm --ext=fmm --count=1000000 --maxlen=12 --seed=34'}
+          - {name: fm5, args: '--mode=random --alphabet=rich --ext=fm --prefix=fmy2 --count=800000 --maxlen=14 --seed=35'}
+          - {name: fm6, args: '--mode=random --alphabet=rich --ext=fm --prefix=fmcrlf --count=800000 --maxlen=14 --seed=36'}
+          - {name: fm7, args: '--mode=random --alphabet=links --ext=fmy --prefix=fmy --count=800000 --maxlen=16 --seed=37'}
+          - {name: fm8, args: '--mode=random --alphabet=rich --ext=fm --count=800000 --maxlen=16 --seed=38'}
+          - {name: fm9, args: '--mode=mutate --ext=fm --prefix=fmt2 --count=300000 --seed=39'}
+          # math (remark-math): inline $ / $$ text math and $$ flow math, with and without single dollars, mixed with frontmatter
+          - {name: ma1, args: '--mode=random --alphabet=math --ext=math --count=1500000 --maxlen=14 --seed=41'}
+          - {name: ma2, args: '--mode=random --alphabet=math --ext=mathns --count=1500000 --maxlen=14 --seed=42'}
+          - {name: ma3, args: '--mode=random --alphabet=rich --ext=math --count=800000 --maxlen=16 --seed=43'}
+          - {name: ma4, args: '--mode=random --alphabet=math --ext=fm,math --count=1000000 --maxlen=16 --seed=44'}
+          - {name: ma5, args: '--mode=random --alphabet=math --ext=math --prefix=mathbq --count=800000 --maxlen=12 --seed=45'}
+          - {name: ma6, args: '--mode=random --alphabet=math --ext=math --prefix=mathli --count=800000 --maxlen=12 --seed=46'}
+          - {name: ma7, args: '--mode=mutate --ext=math --count=400000 --seed=47'}
+          - {name: ma8, args: '--mode=spec --ext=math --count=300000 --seed=48'}
+          # one-character mutations of corpus paragraphs
+          - {name: mu1, args: '--mode=mutate --count=500000 --seed=1'}
+          - {name: mu2, args: '--mode=mutate --count=500000 --seed=2 --suffix=defs'}
+          # CommonMark spec example crossover / mutation
+          - {name: sp1, args: '--mode=spec --count=500000 --seed=1'}
+          - {name: sp2, args: '--mode=spec --count=500000 --seed=2 --suffix=defs'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node bench/fetch-corpora.mjs
+      - name: differential fuzz (${{ matrix.name }})
+        run: node bench/fuzz.mjs ${{ matrix.args }} --out=fuzz-failures-${{ matrix.name }}.json | tee fuzz-${{ matrix.name }}.log; exit ${PIPESTATUS[0]}
+      - name: summary
+        if: always()
+        run: |
+          echo "- ${{ matrix.name }}: $(head -1 fuzz-${{ matrix.name }}.log)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-${{ matrix.name }}
+          path: |
+            fuzz-${{ matrix.name }}.log
+            fuzz-failures-${{ matrix.name }}.json
+          if-no-files-found: ignore
+
+  # Streaming parser: after EVERY push the tree must equal a full parse of everything pushed so far.
+  stream-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: sc0, args: '--mode=corpus --shard=0/8'}
+          - {name: sc1, args: '--mode=corpus --shard=1/8'}
+          - {name: sc2, args: '--mode=corpus --shard=2/8'}
+          - {name: sc3, args: '--mode=corpus --shard=3/8'}
+          - {name: sc4, args: '--mode=corpus --shard=4/8'}
+          - {name: sc5, args: '--mode=corpus --shard=5/8'}
+          - {name: sc6, args: '--mode=corpus --shard=6/8'}
+          - {name: sc7, args: '--mode=corpus --shard=7/8'}
+          - {name: scfm, args: '--mode=corpus --shard=0/16 --opts=fm'}
+          - {name: scall, args: '--mode=corpus --shard=1/16 --opts=all'}
+          - {name: sf1, args: '--mode=fuzz --alphabet=base --count=60000 --maxtokens=60 --seed=1'}
+          - {name: sf2, args: '--mode=fuzz --alphabet=rich --count=60000 --maxtokens=100 --seed=2'}
+          - {name: sf3, args: '--mode=fuzz --alphabet=links --count=60000 --maxtokens=80 --seed=3'}
+          - {name: sf4, args: '--mode=fuzz --alphabet=rich --count=40000 --maxtokens=140 --seed=4'}
+          - {name: sf5, args: '--mode=fuzz --alphabet=fm --count=60000 --maxtokens=60 --seed=5 --opts=fm'}
+          - {name: sf6, args: '--mode=fuzz --alphabet=math --count=60000 --maxtokens=60 --seed=6 --opts=math'}
+          - {name: sf7, args: '--mode=fuzz --alphabet=rich --count=60000 --maxtokens=100 --seed=7 --opts=all'}
+          - {name: sf8, args: '--mode=fuzz --alphabet=links --count=60000 --maxtokens=100 --seed=8 --opts=all'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node bench/fetch-corpora.mjs
+      - name: stream differential (${{ matrix.name }})
+        run: |
+          set -o pipefail
+          node bench/stream-diff.mjs ${{ matrix.args }} --out=stream-failures-${{ matrix.name }}.json | tee stream-${{ matrix.name }}.log
+      - name: summary
+        if: always()
+        run: |
+          echo "- ${{ matrix.name }} $(tail -1 stream-${{ matrix.name }}.log)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stream-${{ matrix.name }}
+          path: |
+            stream-${{ matrix.name }}.log
+            stream-failures-${{ matrix.name }}.json
+          if-no-files-found: ignore
+
+  stream-bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node bench/fetch-corpora.mjs
+      - name: streaming benchmark (full re-parse per push vs createStreamParser)
+        run: node bench/stream-bench.mjs --sizes=10000,30000,100000 --chunk=12 | tee stream-bench.txt
+      - name: summary
+        run: |
+          echo '### streaming benchmark (12 chars per push)' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat stream-bench.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stream-bench
+          path: stream-bench.txt
+
+  big-inputs:
+    name: 10 MB inputs and deep nesting vs micromark
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: BIG=1 node --max-old-space-size=6144 --stack-size=2000 --test --test-timeout=3000000 test/edge.test.mjs
+
+  runtimes:
+    name: Deno and Chromium smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: npm ci
+      - name: same digest on Node and Deno
+        run: |
+          set -o pipefail
+          node test/smoke/run.mjs | tee node.json
+          deno run -A test/smoke/run.mjs | tee deno.json
+          diff node.json deno.json && echo "digests match"
+      - name: Chromium (browser condition, DOM entity decoding)
+        run: |
+          set -o pipefail
+          npm i --no-save --no-package-lock playwright@1.64.0
+          npx playwright install --with-deps chromium
+          node test/smoke/browser.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+
+  readme-corpus:
+    name: README corpus identity (rebuilt from npm, slow)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node bench/readme-corpus.mjs --concurrency=8
+      - run: node bench/run.mjs --readme --nospeed | tee readme-corpus.txt
+      - run: node bench/stream-diff.mjs --mode=corpus --readme=1 --shard=0/16 | tee -a readme-corpus.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readme-corpus
+          path: readme-corpus.txt

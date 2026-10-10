@@ -1,0 +1,121 @@
+name: bench
+# Benchmarks (about 30 minutes): end to end unified, parse only, MDX, react-markdown in Node and in Chromium with a
+# throttled CPU, streaming, a real Astro site build, bundle sizes. Weekly and by hand; nothing here runs on every push.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '43 4 * * 1'
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  FORCE_COLOR: '0'
+jobs:
+  size:
+    name: bundle sizes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/size.mjs | tee size.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: size
+          path: size.md
+
+  bench:
+    name: bench ${{ matrix.part }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [e2e, parse, mdx, reactmd]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: ${{ matrix.part }}
+        run: node bench/perf/run.mjs --only=${{ matrix.part }} --rounds=7 --json=results/${{ matrix.part }}.json --markdown=results/${{ matrix.part }}.md
+      - run: cat results/${{ matrix.part }}.md >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-${{ matrix.part }}
+          path: results/
+
+  reactmd-browser:
+    name: react-markdown in Chromium (CPU throttled)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: |
+          npm i --no-save --no-package-lock playwright@1.64.0
+          npx playwright install --with-deps chromium
+      - run: node bench/perf/reactmd-browser.mjs --markdown=results/reactmd-browser.md --json=results/reactmd-browser.json
+      - run: cat results/reactmd-browser.md >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-reactmd-browser
+          path: results/
+
+  site:
+    name: real site (Astro)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: mkdir -p results && node bench/fetch-corpora.mjs --only=rust-book,vite-docs,node-api-docs
+      - name: build the site with and without samemark
+        run: node bench/perf/site/run-site.mjs --runs=3 --json=results/site.json --markdown=results/site.md
+      - run: cat results/site.md >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+      - name: installed versions
+        if: always()
+        run: cd site-bench && npm ls --all --depth=0 2>/dev/null | head -20; cp package-lock.json ../results/site-package-lock.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-site
+          path: results/
+
+  report:
+    name: assemble report
+    needs: [size, bench, site, reactmd-browser]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: report.md
+        run: |
+          ls -R artifacts | head -50
+          { for f in e2e reactmd; do cat artifacts/bench-$f/$f.md 2>/dev/null; echo; done; cat artifacts/bench-reactmd-browser/reactmd-browser.md 2>/dev/null; echo; for f in parse mdx; do cat artifacts/bench-$f/$f.md 2>/dev/null; echo; done; cat artifacts/bench-site/site.md 2>/dev/null; echo; echo '### Bundle sizes'; echo; cat artifacts/size/size.md 2>/dev/null; } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: report.md

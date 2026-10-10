@@ -1,0 +1,123 @@
+name: ci
+# Fast checks on every push and pull request (a few minutes). The slow ones are in full.yml and bench.yml.
+# Publishing: the last job publishes to npm with trusted publishing (OIDC, no token) when package.json carries a version
+# that is not on the registry yet. Version 0.0.0 never publishes.
+on:
+  push:
+  pull_request:
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  FORCE_COLOR: '0'
+jobs:
+  test:
+    name: test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: stock GFM / frontmatter / math signature matches the pinned micromark packages
+        run: node scripts/gen-signature.mjs --check
+      - run: npm run build
+      - name: unit, edge, plugin, stream, bundle and depth tests
+        run: node --test test/*.test.mjs
+      - name: regression inputs (every input that ever failed)
+        run: |
+          node bench/fuzz.mjs --mode=regress
+          node bench/fuzz.mjs --mode=regress --ext=fm
+          node bench/stream-diff.mjs --mode=regress
+      - name: types
+        if: matrix.node == 24
+        run: npm run test:types
+      - name: packed tarball in an empty consumer project (ESM and CommonJS)
+        run: node scripts/pack-check.mjs
+      - name: bundle sizes
+        if: matrix.node == 24
+        run: node scripts/size.mjs >> "$GITHUB_STEP_SUMMARY"
+
+  identity:
+    name: identity against micromark (spec, docs, synthetic, stream sample)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: fetch the pinned corpora (bench/corpora.json)
+        run: node bench/fetch-corpora.mjs
+      - name: 'CommonMark + GFM spec examples, pinned docs, synthetic corpus (full trees, positions included)'
+        run: node bench/run.mjs --require-docs
+      - name: frontmatter and math variants over the corpora
+        run: node bench/frontmatter.mjs --sample=4
+      - name: 'stream parser, every push equals a full parse (sample)'
+        run: node bench/stream-diff.mjs --mode=corpus --sample=12 --maxbytes=20000
+      - name: scaling guard
+        run: node bench/scaling.mjs
+
+  fuzz:
+    name: differential fuzz (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: exhaustive, args: '--mode=exhaustive --maxlen=5 --shard=0/3'}
+          - {name: random, args: '--mode=random --alphabet=rich --count=500000 --maxlen=24 --seed=1'}
+          - {name: mixed, args: ''}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node bench/fetch-corpora.mjs
+      - name: ${{ matrix.name }}
+        if: matrix.name != 'mixed'
+        run: node bench/fuzz.mjs ${{ matrix.args }}
+      - name: mutations of corpus paragraphs, spec crossover, frontmatter, math
+        if: matrix.name == 'mixed'
+        run: |
+          node bench/fuzz.mjs --mode=mutate --count=250000 --seed=1
+          node bench/fuzz.mjs --mode=spec --count=250000 --seed=1
+          node bench/fuzz.mjs --mode=random --alphabet=fm --ext=fm --count=150000 --maxlen=12 --seed=31
+          node bench/fuzz.mjs --mode=random --alphabet=math --ext=math --count=150000 --maxlen=14 --seed=41
+
+  publish:
+    name: publish to npm when the version is new
+    needs: [test, identity, fuzz]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install -g npm@latest # trusted publishing needs npm 11.5.1 or newer
+      - run: npm ci
+      - run: npm run build
+      - name: publish
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$VERSION" = "0.0.0" ]; then echo "version 0.0.0 is a placeholder: not publishing"; exit 0; fi
+          if npm view "samemark@$VERSION" version > /dev/null 2>&1; then echo "samemark@$VERSION is already on npm: not publishing"; exit 0; fi
+          npm publish --provenance --access public
