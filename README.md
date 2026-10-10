@@ -2,6 +2,17 @@
 
 The same mdast as remark-parse, much faster.
 
+<!-- demo:start -->
+**[Live demo](https://anzal1.github.io/samemark/)**: a long chat answer streamed into react-markdown (left) and into
+`samemark/stream` (right), with per-update timings measured in your browser and a check that both DOMs are identical,
+plus a playground that compares samemark's tree with `mdast-util-from-markdown` as you type.
+<!-- demo:end -->
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/e2e-speedup-dark.svg">
+  <img alt="Horizontal bar chart of end to end markdown to HTML time for six inputs, remark-parse against samemark. samemark is 6.2x to 10.3x faster, for example 5.00 s down to 486 ms on the Node.js API docs." src="assets/e2e-speedup-light.svg" width="880">
+</picture>
+
 samemark is a markdown parser that returns the same mdast tree as `mdast-util-from-markdown` with GFM (what
 `remark-parse` + `remark-gfm` produce), positions included, and falls back to that real parser for anything it
 does not reproduce exactly.
@@ -199,6 +210,11 @@ Identity of that parser, in CI: 48,196,453 pushes over 465,378 documents (corpus
 random, token-like and whole-line chunkings, with and without frontmatter and math), each tree compared with a full
 parse; 0 failing.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/stream-growth-dark.svg">
+  <img alt="Line chart of the total time to stream an answer in 12 character pushes at 10,451, 30,416 and 100,193 characters. A full re-parse per push takes 422 ms, 981 ms and 9,232 ms; samemark/stream takes 66 ms, 54 ms and 133 ms." src="assets/stream-growth-light.svg" width="880">
+</picture>
+
 React render included (DOM commit, memoised blocks):
 
 <!-- stream-bench:start -->
@@ -223,6 +239,116 @@ Environment: Node v24.21.0, GitHub Actions ubuntu24 X64 (github-hosted), INTEL(R
 
 (a) is what a chat UI does today: react-markdown re-parses and re-renders the whole message on every push. (b) swaps the parser only. (c) is `examples/react-chat`.
 <!-- stream-bench:end -->
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/stream-dom-dark.svg">
+  <img alt="Grouped horizontal bars of main-thread time streaming a 30,000 character answer into the DOM in Chromium, at no CPU throttling, 4x and 6x. react-markdown takes 11.29 s, 50.91 s and 79.43 s; with samemark 2.24 s, 9.85 s and 15.33 s; samemark/stream with memoised blocks 187 ms, 669 ms and 1.03 s." src="assets/stream-dom-light.svg" width="880">
+</picture>
+
+## Examples
+
+Each snippet was run against this repository; the unified, frontmatter and fallback ones print what is shown.
+
+**unified pipeline** (markdown to HTML):
+
+```js
+import {unified} from 'unified'
+import remarkGfm from 'remark-gfm'
+import remarkRehype from 'remark-rehype'
+import rehypeStringify from 'rehype-stringify'
+import remarkParseFast from 'samemark'
+
+const file = await unified()
+  .use(remarkParseFast)
+  .use(remarkGfm)
+  .use(remarkRehype)
+  .use(rehypeStringify)
+  .process('# Hello *world*\n\n| a | b |\n|---|---|\n| ~~x~~ | y |')
+console.log(String(file))
+// <h1>Hello <em>world</em></h1>
+// <table> ... <td><del>x</del></td> ... </table>
+```
+
+**react-markdown, one line changed:**
+
+```jsx
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkParseFast from 'samemark'
+
+const plugins = [remarkParseFast, remarkGfm] // module level: not recreated per render
+export const Answer = ({text}) => <Markdown remarkPlugins={plugins}>{text}</Markdown>
+```
+
+**Streaming chat with `samemark/stream`.** In React use [`examples/react-chat`](examples/react-chat/StreamMarkdown.jsx)
+(the [live demo](https://anzal1.github.io/samemark/) runs it). Without a framework:
+
+```js
+import {createStreamParser} from 'samemark/stream'
+
+const stream = createStreamParser()
+let tree
+for (const chunk of ['# Hel', 'lo\n\nSome **bo', 'ld** text\n\n- a\n- b\n']) {
+  tree = stream.push(chunk) // same tree as parse(everything so far); finished blocks keep their identity
+}
+console.log(tree.children.map(node => node.type)) // [ 'heading', 'paragraph', 'list' ]
+```
+
+**Astro:**
+
+```js
+// astro.config.mjs
+import remarkParseFast from 'samemark'
+export default {markdown: {remarkPlugins: [remarkParseFast]}}
+```
+
+**Frontmatter and math** stay on the fast path:
+
+```js
+import remarkFrontmatter from 'remark-frontmatter'
+import remarkMath from 'remark-math'
+import {stats} from 'samemark'
+
+const file = await unified()
+  .use(remarkParseFast)
+  .use(remarkGfm)
+  .use(remarkFrontmatter)
+  .use(remarkMath)
+  .use(remarkRehype)
+  .use(rehypeStringify)
+  .process('---\ntitle: Notes\n---\n\nEuler: $e^{i\\pi}+1=0$\n')
+console.log(String(file)) // <p>Euler: <code class="language-math math-inline">e^{i\pi}+1=0</code></p>
+console.log(stats)        // { fast: 1, fallback: 0, lastFallbackReason: null }
+```
+
+**`samemark/core` in the browser** (no fallback import; the `browser` build is about 20 KB gzipped, see
+[Bundle size](#bundle-size)). It needs a bundler that honours package `exports`, such as esbuild or Vite:
+
+```js
+import {parse} from 'samemark/core'
+
+const tree = parse('# Hello *world*') // mdast Root, GFM
+```
+
+**Checking fallbacks** so nobody finds one in a profiler:
+
+```js
+import remarkDirective from 'remark-directive'
+import remarkParseFast, {stats} from 'samemark'
+
+const reasons = []
+await unified()
+  .use(remarkParseFast, {onFallback: reason => reasons.push(reason)})
+  .use(remarkGfm)
+  .use(remarkDirective) // not in the supported set: the real parser takes over
+  .use(remarkRehype)
+  .use(rehypeStringify)
+  .process(':::note\nhi\n:::')
+console.log(reasons) // ['micromark extension not in the supported set (GFM, frontmatter, math): ...']
+console.log(stats)   // { fast: 0, fallback: 1, lastFallbackReason: '...' }
+```
+
+Pass `{strict: true}` to throw instead of falling back.
 
 ## Compatibility
 
@@ -287,6 +413,17 @@ so it falls back and gains nothing. **Docusaurus** and **MDX** compile through `
 `@mdx-js/mdx` with `format: 'md'` and `remark-gfm`: fast.
 
 ## How identity is verified
+
+Correctness at a glance (every row compares the full tree, positions included, against `mdast-util-from-markdown` + GFM; details and commands in the table below):
+
+| Check | Scale | Result | Reproduce |
+|---|---|---|---|
+| CommonMark and GFM spec examples | 652 CommonMark 0.31.2, 672 GFM spec and 30 GFM extension examples | all identical | `npm run check` |
+| Pinned docs corpora and synthetic corpus | Node.js API docs and changelog, Rust book, Vite docs, React changelog, 240 generated documents | all identical | `npm run corpus && npm run check` |
+| README corpus | 4,780 npm package READMEs | all identical at the last run | `node bench/readme-corpus.mjs && node bench/run.mjs --readme --nospeed` |
+| Held-out files | 10,893 non-README markdown files | all identical at the last run | `node bench/heldout.mjs --roots=DIR` |
+| Differential fuzz | tens of millions of generated inputs (the weekly full matrix is about 60M) | 0 failing; known corner shapes are listed in [KNOWN_GAPS.md](KNOWN_GAPS.md) | `node bench/fuzz.mjs --mode=regress`, [`ci.yml`](.github/workflows/ci.yml), [`full.yml`](.github/workflows/full.yml) |
+| Stream parser, tree after every push | 48,196,453 pushes over 465,378 documents | 0 failing | `node bench/stream-diff.mjs --mode=regress`, [`full.yml`](.github/workflows/full.yml) |
 
 "Identical" means `JSON`-equal trees including every `position`, not "looks the same" (`firstDiff` in
 `bench/common.mjs`; `undefined` fields are treated as absent).
