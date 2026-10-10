@@ -1,0 +1,140 @@
+{
+  "name": "samemark",
+  "version": "0.0.0",
+  "description": "The same mdast as remark-parse, much faster: a markdown parser that matches mdast-util-from-markdown with GFM and falls back to it for anything else.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Anzal Abidi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anzal1/samemark.git"
+  },
+  "keywords": [
+    "markdown",
+    "mdast",
+    "remark",
+    "unified",
+    "parser",
+    "gfm",
+    "commonmark",
+    "micromark",
+    "fast"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./core": {
+      "types": "./core.d.ts",
+      "import": "./core.js",
+      "require": "./dist/core.cjs"
+    },
+    "./package.json": "./package.json",
+    "./stream": {
+      "types": "./stream.d.ts",
+      "import": "./stream.js",
+      "require": "./dist/stream.cjs"
+    }
+  },
+  "files": [
+    "index.js",
+    "core.js",
+    "index.d.ts",
+    "core.d.ts",
+    "stream.js",
+    "stream.d.ts",
+    "examples/",
+    "lib/",
+    "src/",
+    "dist/",
+    "LICENSE",
+    "README.md",
+    "KNOWN_GAPS.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs && node scripts/gen-signature.mjs --check && node bench/fuzz.mjs --mode=regress",
+    "test:types": "tsc -p test/types/tsconfig.json",
+    "size": "node scripts/size.mjs",
+    "check": "node bench/run.mjs --require-docs",
+    "corpus": "node bench/fetch-corpora.mjs",
+    "bench": "node bench/perf/run.mjs",
+    "bench:small": "node bench/perf/run.mjs --small",
+    "bench:stream": "node bench/perf/stream-jsdom.mjs",
+    "scaling": "node bench/scaling.mjs",
+    "fuzz": "node bench/fuzz.mjs"
+  },
+  "peerDependencies": {
+    "mdast-util-from-markdown": "^2.0.0",
+    "unified": "^11.0.0"
+  },
+  "peerDependenciesMeta": {
+    "mdast-util-from-markdown": {
+      "optional": true
+    },
+    "unified": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@types/mdast": "^4.0.4",
+    "ccount": "2.0.1",
+    "decode-named-character-reference": "1.3.0",
+    "micromark-util-decode-numeric-character-reference": "2.0.2",
+    "micromark-util-decode-string": "2.0.1",
+    "micromark-util-html-tag-name": "2.0.1",
+    "micromark-util-normalize-identifier": "2.0.1"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "5.0.0",
+    "@mdx-js/mdx": "3.1.1",
+    "@types/hast": "3.0.5",
+    "@types/markdown-it": "14.2.0",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "commonmark-spec": "0.31.2",
+    "esbuild": "0.28.2",
+    "hast-util-to-jsx-runtime": "2.3.6",
+    "html-url-attributes": "3.0.1",
+    "jsdom": "30.1.2",
+    "markdown-it": "15.0.2",
+    "marked": "18.1.0",
+    "mdast-util-from-markdown": "2.1.0",
+    "mdast-util-frontmatter": "2.0.1",
+    "mdast-util-gfm": "3.1.0",
+    "mdast-util-math": "3.0.0",
+    "mdast-util-to-hast": "13.2.1",
+    "micromark-extension-frontmatter": "2.0.0",
+    "micromark-extension-gfm": "3.0.0",
+    "micromark-extension-math": "3.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-markdown": "10.1.0",
+    "rehype-stringify": "10.0.1",
+    "remark-breaks": "4.0.0",
+    "remark-directive": "4.0.0",
+    "remark-frontmatter": "5.0.0",
+    "remark-gfm": "4.0.1",
+    "remark-math": "6.0.0",
+    "remark-mdx": "3.1.1",
+    "remark-parse": "11.0.0",
+    "remark-rehype": "11.1.2",
+    "remark-smartypants": "3.0.3",
+    "remark-stringify": "11.0.0",
+    "typescript": "7.0.2",
+    "unified": "11.0.5"
+  },
+  "homepage": "https://github.com/anzal1/samemark#readme",
+  "bugs": {
+    "url": "https://github.com/anzal1/samemark/issues"
+  }
+}

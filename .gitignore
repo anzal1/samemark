@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.corpus/
+results/
+site-bench/
+spec-fails.json
+heldout-list*.txt
+fuzz-failures*.json
+stream-failures*.json
+*.log
+*.tgz
+.DS_Store
