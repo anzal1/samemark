@@ -6,10 +6,10 @@ on:
     inputs:
       len:
         description: 'answer length (10000 or 30000)'
-        default: '30000'
+        default: '10000'
       rate:
         description: 'updates per second (0 = as fast as possible)'
-        default: '100'
+        default: '25'
 jobs:
   record:
     runs-on: ubuntu-latest
@@ -25,6 +25,7 @@ jobs:
       - run: |
           npm i --no-save --no-package-lock playwright@1.64.0
           npx playwright install --with-deps chromium
+      - run: sudo apt-get install -y --no-install-recommends ffmpeg
       - run: node scripts/record-demo.mjs --out=out --len=${{ inputs.len }} --rate=${{ inputs.rate }}
       - run: ls -l out
         if: always()
