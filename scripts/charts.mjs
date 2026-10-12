@@ -2,7 +2,7 @@
 //   node scripts/charts.mjs
 // Data, nothing invented:
 //   - bench/data/report-38036885270.md  the `report` artifact of the public bench run 38036885270
-//     (gh run download 38036885270 -R anzal1/samemark -n report): end to end table, streaming-into-the-DOM table
+//     (gh run download 38036885270 -R halleylabs/samemark -n report): end to end table, streaming-into-the-DOM table
 //   - README.md "Streaming cost" table: bench/stream-bench.mjs, 12 characters per push (CI, private development repo)
 import fs from 'node:fs'
 

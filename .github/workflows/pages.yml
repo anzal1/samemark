@@ -1,6 +1,6 @@
 name: pages
 # Builds the live demo (site/) and deploys it to GitHub Pages on every push to main. Needs Pages enabled with the
-# "GitHub Actions" source (Settings, Pages), which `gh api -X POST repos/anzal1/samemark/pages -f build_type=workflow` sets.
+# "GitHub Actions" source (Settings, Pages), which `gh api -X POST repos/halleylabs/samemark/pages -f build_type=workflow` sets.
 on:
   push:
     branches: [main]

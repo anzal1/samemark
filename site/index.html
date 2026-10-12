@@ -15,9 +15,9 @@
   <div class="wrap">
     <p class="brand">samemark</p>
     <nav aria-label="Project links">
-      <a href="https://github.com/anzal1/samemark">GitHub</a>
-      <a href="https://github.com/anzal1/samemark#benchmarks">Benchmarks</a>
-      <a href="https://github.com/anzal1/samemark/issues/new">Report a difference</a>
+      <a href="https://github.com/halleylabs/samemark">GitHub</a>
+      <a href="https://github.com/halleylabs/samemark#benchmarks">Benchmarks</a>
+      <a href="https://github.com/halleylabs/samemark/issues/new">Report a difference</a>
     </nav>
   </div>
 </header>
@@ -31,7 +31,7 @@
 
   <section id="demo" aria-labelledby="demo-h">
     <h2 id="demo-h">Streaming demo: a chat answer, token by token</h2>
-    <p>One long answer is streamed into two panes, 40 characters per update. On the left, <code>react-markdown</code> re-parses and re-renders the whole message on every update, which is what most chat UIs do. On the right, <code>samemark/stream</code> parses only the new text and React skips every finished block (<a href="https://github.com/anzal1/samemark/blob/main/examples/react-chat/StreamMarkdown.jsx">examples/react-chat</a>).</p>
+    <p>One long answer is streamed into two panes, 40 characters per update. On the left, <code>react-markdown</code> re-parses and re-renders the whole message on every update, which is what most chat UIs do. On the right, <code>samemark/stream</code> parses only the new text and React skips every finished block (<a href="https://github.com/halleylabs/samemark/blob/main/examples/react-chat/StreamMarkdown.jsx">examples/react-chat</a>).</p>
 
     <div class="controls" role="group" aria-label="Demo controls">
       <label>Answer length
@@ -82,7 +82,7 @@
       </article>
     </div>
     <p id="ratio" class="ratio"></p>
-    <p class="small">Both sparklines share one scale: <span id="scale">0 to 1 ms</span> per update, left edge is the first update. Each number is the time of one synchronous React update (parse, render and DOM commit; layout and paint are not included), measured with <code>performance.now()</code> in your browser, on this device. Both panes run on the same thread, one after the other, in alternating order. No throttling is applied: open this page on a phone to see the difference on a slower device. The checked claim is the badge: the two panes must hold identical HTML, compared every 10 updates and at the end. Controlled measurements (Chromium, 4x and 6x CPU throttling, 7 rounds) are in the <a href="https://github.com/anzal1/samemark#streaming-cost">README</a>.</p>
+    <p class="small">Both sparklines share one scale: <span id="scale">0 to 1 ms</span> per update, left edge is the first update. Each number is the time of one synchronous React update (parse, render and DOM commit; layout and paint are not included), measured with <code>performance.now()</code> in your browser, on this device. Both panes run on the same thread, one after the other, in alternating order. No throttling is applied: open this page on a phone to see the difference on a slower device. The checked claim is the badge: the two panes must hold identical HTML, compared every 10 updates and at the end. Controlled measurements (Chromium, 4x and 6x CPU throttling, 7 rounds) are in the <a href="https://github.com/halleylabs/samemark#streaming-cost">README</a>.</p>
   </section>
 
   <section id="playground" aria-labelledby="pg-h">
@@ -91,7 +91,7 @@
     <label for="src" class="block">Markdown</label>
     <textarea id="src" rows="14" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
     <p id="verdict" class="badge pending" role="status" aria-live="polite">Parsing...</p>
-    <p class="try">Try to break it: if you find an input where the two trees differ, <a href="https://github.com/anzal1/samemark/issues/new?title=Different+mdast+from+mdast-util-from-markdown">open an issue</a> and paste the input. That is exactly the bug report this project wants.</p>
+    <p class="try">Try to break it: if you find an input where the two trees differ, <a href="https://github.com/halleylabs/samemark/issues/new?title=Different+mdast+from+mdast-util-from-markdown">open an issue</a> and paste the input. That is exactly the bug report this project wants.</p>
     <label class="check"><input id="pos" type="checkbox"> Show <code>position</code> fields in the trees below (they are always compared)</label>
     <div class="cols">
       <article class="side" aria-labelledby="pa-h">
@@ -108,7 +108,7 @@
 </main>
 
 <footer class="wrap foot">
-  <p>MIT licensed. <a href="https://github.com/anzal1/samemark">Source, benchmarks and the identity checks</a>. <a href="https://github.com/micromark/micromark">micromark</a> by Titus Wormer defines the behavior this parser reproduces.</p>
+  <p>MIT licensed. <a href="https://github.com/halleylabs/samemark">Source, benchmarks and the identity checks</a>. <a href="https://github.com/micromark/micromark">micromark</a> by Titus Wormer defines the behavior this parser reproduces.</p>
 </footer>
 <script src="app.js" defer></script>
 </body>

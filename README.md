@@ -1,15 +1,17 @@
 # samemark
 
+<sub>A <a href="https://halleylabs.dev">Halley</a> project</sub>
+
 The same mdast as remark-parse, much faster.
 
 <!-- demo:start -->
-**[Live demo](https://anzal1.github.io/samemark/)**: a long chat answer streamed into react-markdown (left) and into
+**[Live demo](https://halleylabs.dev/samemark/)**: a long chat answer streamed into react-markdown (left) and into
 `samemark/stream` (right), with per-update timings measured in your browser and a check that both DOMs are identical,
 plus a playground that compares samemark's tree with `mdast-util-from-markdown` as you type.
 
-<a href="https://anzal1.github.io/samemark/"><img alt="Screen capture of the live demo: the same 10,000 character chat answer streams into react-markdown on the left and samemark/stream on the right, with per-update timings, a sparkline for each side and a badge reporting that both panes hold identical HTML." src="assets/demo-stream.gif" width="880"></a>
+<a href="https://halleylabs.dev/samemark/"><img alt="Screen capture of the live demo: the same 10,000 character chat answer streams into react-markdown on the left and samemark/stream on the right, with per-update timings, a sparkline for each side and a badge reporting that both panes hold identical HTML." src="assets/demo-stream.gif" width="880"></a>
 
-The capture above is the live demo, recorded in headless Chromium on a GitHub Actions runner ([capture run 38066505899](https://github.com/anzal1/samemark/actions/runs/38066505899): 250 updates, 1.76 s of update time on the left, 94 ms on the right, identical HTML at all 25 checks). On your own device the numbers will differ; they are measured in your browser.
+The capture above is the live demo, recorded in headless Chromium on a GitHub Actions runner ([capture run 38066505899](https://github.com/halleylabs/samemark/actions/runs/38066505899): 250 updates, 1.76 s of update time on the left, 94 ms on the right, identical HTML at all 25 checks). On your own device the numbers will differ; they are measured in your browser.
 <!-- demo:end -->
 
 <picture>
@@ -44,7 +46,7 @@ DOM. Swapping only the parser inside react-markdown gives 5x to 6x.
 
 Building a 239-page Astro site took 29.6 s with `remark-parse` and 22.9 s with samemark (23% less).
 
-All numbers come from one CI run ([38036885270](https://github.com/anzal1/samemark/actions/runs/38036885270)) and are
+All numbers come from one CI run ([38036885270](https://github.com/halleylabs/samemark/actions/runs/38036885270)) and are
 reproducible with `npm run bench`. Details and method: [Benchmarks](#benchmarks).
 <!-- /bench:headline -->
 
@@ -222,7 +224,7 @@ parse; 0 failing.
 React render included (DOM commit, memoised blocks):
 
 <!-- stream-bench:start -->
-From CI run [38036885270](https://github.com/anzal1/samemark/actions/runs/38036885270) (Chromium, GitHub Actions runner); reproduce locally with `npm run bench:stream` (jsdom, smaller numbers) or run the `bench` workflow.
+From CI run [38036885270](https://github.com/halleylabs/samemark/actions/runs/38036885270) (Chromium, GitHub Actions runner); reproduce locally with `npm run bench:stream` (jsdom, smaller numbers) or run the `bench` workflow.
 
 One chat message streamed 40 characters per push into a real DOM node (Chromium 156.0.8078.4, React 19 production, `flushSync` per push, so each push is parse + React render + DOM commit; layout and paint are not included). (a) react-markdown re-rendering the whole message per push, (b) the same with samemark as the parser, (c) the stream parser with per-block memoisation (`examples/react-chat`). "Total" is the sum of all push times on the main thread. The DOM after the final push, and after every 25th push, is compared with (a): the last column.
 
@@ -285,7 +287,7 @@ export const Answer = ({text}) => <Markdown remarkPlugins={plugins}>{text}</Mark
 ```
 
 **Streaming chat with `samemark/stream`.** In React use [`examples/react-chat`](examples/react-chat/StreamMarkdown.jsx)
-(the [live demo](https://anzal1.github.io/samemark/) runs it). Without a framework:
+(the [live demo](https://halleylabs.dev/samemark/) runs it). Without a framework:
 
 ```js
 import {createStreamParser} from 'samemark/stream'

@@ -7,7 +7,7 @@
   "author": "Anzal Abidi",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anzal1/samemark.git"
+    "url": "git+https://github.com/halleylabs/samemark.git"
   },
   "keywords": [
     "markdown",
@@ -135,8 +135,8 @@
     "typescript": "7.0.2",
     "unified": "11.0.5"
   },
-  "homepage": "https://github.com/anzal1/samemark#readme",
+  "homepage": "https://github.com/halleylabs/samemark#readme",
   "bugs": {
-    "url": "https://github.com/anzal1/samemark/issues"
+    "url": "https://github.com/halleylabs/samemark/issues"
   }
 }
