@@ -64,8 +64,9 @@ use bare `\r` line endings can hit it.
 
 ## 4. Outside the identity claim, by design (packaging level)
 
-* Anything beyond stock GFM (`remark-frontmatter`, `remark-math`, `remark-directive`, MDX, `singleTilde: false`, any
-  micromark extension that adds a construct or uses `disable`) is detected and handed to the real parser, so the
+* Anything beyond stock GFM, `remark-frontmatter` and `remark-math` (for example `remark-directive`, MDX, custom
+  frontmatter fences, `singleTilde: false`, any other micromark extension that adds a construct or uses `disable`) is
+  detected and handed to the real parser, so the
   result is micromark's own, at micromark's speed. `strict: true` turns that into an error. See the compatibility
   table in the README.
 * `parse()` and the plugin accept `string`, `Uint8Array` (decoded as UTF-8) and objects with `toString()`. Only

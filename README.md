@@ -325,6 +325,15 @@ console.log(String(file)) // <p>Euler: <code class="language-math math-inline">e
 console.log(stats)        // { fast: 1, fallback: 0, lastFallbackReason: null }
 ```
 
+samemark parses math into the same `inlineMath` and `math` nodes as `remark-math`; typesetting is the renderer's job, exactly as with
+remark-parse. Add `rehype-katex` (or `rehype-mathjax`) after `remark-rehype` to turn them into equations:
+
+```js
+import rehypeKatex from 'rehype-katex'
+
+unified().use(remarkParseFast).use(remarkGfm).use(remarkMath).use(remarkRehype).use(rehypeKatex).use(rehypeStringify)
+```
+
 **`samemark/core` in the browser** (no fallback import; the `browser` build is about 20 KB gzipped, see
 [Bundle size](#bundle-size)). It needs a bundler that honours package `exports`, such as esbuild or Vite:
 
